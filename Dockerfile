@@ -1,25 +1,35 @@
+# Use the official Node.js image as the base image
+FROM node:14.17.6-alpine AS build
 
-FROM node:14-alpine
-
-# Set the working directory to /app
+# Set the working directory
 WORKDIR /app
 
-# Copy package.json and package-lock.json to the working directory
+# Copy the package.json and package-lock.json files to the container
 COPY package*.json ./
 
 # Install dependencies
 RUN npm install
 
-# Copy the current directory contents into the container at /app
+# Copy the rest of the application code to the container
 COPY . .
 
-# Build the Vue app for production
+# Build the application
 RUN npm run build
 
-# Install serve to run the production build
-RUN npm install -g serve
+# Use the official Nginx image as the base image
+FROM nginx:1.21.3-alpine
 
-# Set the command to start the server and serve the production build
-CMD ["serve", "-s", "dist"] 
+# Copy the Nginx configuration file to the container
+COPY nginx.conf /etc/nginx/nginx.conf
 
-# The above Dockerfile sets up a Node environment, installs dependencies, builds the Vue app for production, installs serve, and sets the command to serve the production build. This can be used to host a Vue app on a cloud service.
+# Remove the default Nginx website
+RUN rm -rf /usr/share/nginx/html/*
+
+# Copy the built application to the Nginx website directory
+COPY --from=build /app/dist /usr/share/nginx/html
+
+# Expose port 80 for the container
+EXPOSE 80
+
+# Start Nginx when the container starts
+CMD ["nginx", "-g", "daemon off;"]
